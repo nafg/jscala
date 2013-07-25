@@ -2,6 +2,7 @@ package org.jscala
 
 import org.scalatest.FunSuite
 import org.jscala.{javascript=>js}
+import scala.util.Random
 
 class ScalaToJsConverterTest extends FunSuite {
   test("Literals") {
@@ -224,5 +225,65 @@ class ScalaToJsConverterTest extends FunSuite {
     }
     val stmt = JsExprStmt(JsBinOp("=", JsAccess(JsIdent("a"), JsString("field")), JsAccess(JsIdent("a"), JsString("field2"))))
     assert(ast1 === JsBlock(List(JsVarDef("a", JsAnonObjDecl(map)), stmt)))
+  }
+
+  test("Switch declaration") {
+    val ast = javascript {
+      val a: Any = "2"
+      a match {
+        case 1 | 2 => "1"
+        case "2" => "2"
+        case true => "true"
+        case _ => "3"
+      }
+    }
+    assert(ast.eval() === "2")
+  }
+
+  test("Try/catch/finally") {
+    val ast = javascript {
+      try { 1 } catch {
+        case  e: Exception => 2
+      }
+    }
+    assert(ast.eval() === 1.0)
+    val ast1 = javascript { try { 1 } finally { 2 } }
+    assert(ast1.eval() === 2.0)
+    val ast2 = javascript {
+      try { 1 } catch {
+        case  e: Exception => 2
+      } finally { 3 }
+    }
+    assert(ast2.eval() === 3.0)
+  }
+
+  test("Object declaration") {
+    class A(arg1: String, arg2: Int = 0) {
+      val field = 1
+      def func1(i: Int) = field
+      def func2(i: Int) = "string"
+    }
+    val ast = javascript {
+    }
+    println(ast.asString)
+  }
+
+  test("Lazy") {
+    val x = 15
+    val y = "hehe"
+    def f() = "1"
+    case class My(a: String)
+    implicit def zzz: JsSerializer[My] = new JsSerializer[My] { def apply(a: My) = JsString(a.a) }
+    val z = My("my")
+    val ls = Seq(1, 2, 3).map(_.toJs)
+    val ast = javascript {
+      val a = inject(x)
+      val b = inject(y)
+      val c = inject(z)
+      val d = inject(f _)
+      val e = inject(ls)
+      a.asInstanceOf[String] + b + c + d + e.toString()
+    }
+    assert(ast.eval() === "15hehemy11,2,3")
   }
 }
